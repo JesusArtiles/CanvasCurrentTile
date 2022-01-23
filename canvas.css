@@ -1,0 +1,14 @@
+canvas {
+    position: absolute;
+    top: 0; left: 0;
+    border:3px solid #d30909;
+    background-color: transparent;
+}
+
+.container {
+    position: relative;
+}
+
+/* body {
+    background-color: black;
+} */
