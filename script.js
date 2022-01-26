@@ -17,8 +17,9 @@
         var lonLine = Math.abs(lon0) - Math.abs(lon1)
         var latLine = lat1 - lat0
 
-        var trail = 50
-        maxParticles = 2000
+        var trail = 25
+        var maxParticles = 5000
+        var allParticles = 0
 
         class Sector{
             constructor(u, v, mag, lon, lat){
@@ -29,8 +30,12 @@
                 this.lat = lat 
                 this.x = (1000 * Math.abs(lon0 + (-1*lon)))/lonLine
                 this.y = (1000 * Math.abs(lat1 - (lat)))/latLine
+                this.birthCounter = (Math.random() * (200 - 50) + 50)
                 if(mag != 0){
-                    this.particles = [new Particle((Math.random() * ((this.x+stepX) - this.x) + this.x), (Math.random() * ((this.y+stepY) - this.y)+ this.y) , this.u, this.v, this)]
+                    this.particles = []
+                    this.addParticle()
+                    //this.addParticle()
+                    //this.addParticle()
                 }else{
                     this.particles = []
                 }
@@ -38,21 +43,36 @@
             }
 
             addParticle() {
+                if(allParticles >= maxParticles)return
                 this.particles.push(new Particle((Math.random() * ((this.x+stepX) - this.x) + this.x), (Math.random() * ((this.y+stepY) - this.y)+ this.y) , this.u, this.v, this))
+                allParticles++
             }
 
             removeParticle(p) {
                 this.particles = this.particles.filter(particle => particle != p)
+                allParticles--
             }
 
             update() {
-                // this.counter+=1
-                // if(this.mag != 0 && this.counter > 80){
+                if(this.mag == 0) return 
+                // if(this.birthCounter < 0){
                 //     this.addParticle()
-                //     this.counter = 0
+                //     this.birthCounter = (Math.random() * (1500 - 100) + 100)
                 // }
+                // this.birthCounter--
+                if(this.particles.length == 0){
+                    this.addParticle()
+                }
+                for(var particle of this.particles){
+                    if(particle.mother && (((this.x > particle.x)||((this.x+stepX) < particle.x)) && ((this.y > particle.y)||((this.y+stepY)<particle.y)))){
+                        particle.mother = false
+                        this.addParticle()
+                    }
+                   
+                }
             }
 
+            //Not neccesarry in final version, just for testing
             draw() {
                 if(this.mag != 0){
                     ctx.beginPath();
@@ -107,27 +127,59 @@
               this.instances = []
               this.sector = sector
               this.color = getActualColor(sector.mag)
+              this.deathCounter = (Math.random() * (2000 - 100) + 100)
+              this.dead = false
+              this.colorCounter = 1
+              this.mother = true
             }
 
-            add(p) {
+            addInstance(p) {
                 if (this.instances.length > trail) this.instances.shift();
                 this.instances.push(p);
             }
 
+            startDeath() {
+                //this.color = defaulColorScale[0]
+                this.dirX = this.dirX/10
+                this.dirY = this.dirY/10
+                this.dead = true
+            }
+
             update() {
-                var sector = getActualSector(this)
-                if(sector != null){
-                    if(sector.mag != 0){
-                        this.dirX = sector.u
-                        this.dirY = sector.v
-                        this.color = getActualColor(sector.mag)
-                    }else{
+                if(this.dead) {
+                    if(this.colorCounter <= 0){
                         this.sector.removeParticle(this)
+                        return
+                    }
+                    var split = this.color.split(',')
+                    if(split.length > 3){
+                        this.color = split[0]+','+split[1]+','+split[2]+','+this.colorCounter+')'
+                    }else{
+                        this.color = this.color.split(')')[0] + ','+this.colorCounter+')'
+                    }
+                    this.colorCounter = ((this.colorCounter*10)-(0.1*10))/10
+                }
+                if(this.deathCounter < 0 && !this.dead){
+                    this.startDeath()
+                    return
+                }
+                this.deathCounter--
+                if(!this.dead){
+                    var sector = getActualSector(this)
+                    if(sector != null){
+                        if(sector.mag != 0){
+                            this.dirX = sector.u
+                            this.dirY = sector.v
+                            this.color = getActualColor(sector.mag)
+                        }else{
+                            this.startDeath()
+                        }
                     }
                 }
-                this.add([this.x, this.y, this.color])
-                this.x += this.dirX/200
-                this.y += this.dirY/200
+                this.addInstance([this.x, this.y, this.color])
+                this.x += this.dirX/100
+                this.y += this.dirY/100
+                
             }
 
             draw() {
@@ -137,7 +189,7 @@
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2) //use rect instead of arc
                 ctx.fill()
 
-                if(this.instances.length != 0){
+                if(this.instances.length != 0 && !this.dead){
                     var toX = this.instances[0][0]
                     var toY = this.instances[0][1]
                     ctx.beginPath();
@@ -147,21 +199,6 @@
                     ctx.strokeStyle = this.color
                     ctx.stroke()
                 }
-                
-                    //Too laggy
-                //var counterS = 0
-                //var coutnerC = 0
-                // for(var p of this.instances){
-                //     console.log(p[2].split(')')[0]+', 0.5)');
-                //     ctx.fillStyle = p[2].split(')')[0]+', 0.5)';
-                //     ctx.beginPath();
-                //     ctx.fillRect(p[0], p[1], 0.4, 0.4);
-                //     //ctx.arc(p[0], p[1], counterS, 0, Math.PI * 2)
-                //     //ctx.closePath
-                //     //ctx.fill()
-                //     //counterS += this.size/trail
-                //     //coutnerC += 1/trail
-                // }
             }
         }
 
@@ -221,15 +258,14 @@
         function animate() {        
             ctx.clearRect(0, 0, 1000, 1000);
             for(var sector of sectors){
-                //sector.draw()
+                sector.draw()
+                sector.update()
                 for(var particle of sector.particles){
                     particle.draw()
                     particle.update()
                 }
             }
-            var sect = this.sectors.filter(s => s.mag != 0)
-            sect[Math.trunc(Math.random() * ((sect.length-1) - 0) + 0)].addParticle()
-            console.log(sect.length);
+            console.log(allParticles);
             requestAnimationFrame(animate)
         }
 
