@@ -1,13 +1,11 @@
         var c = document.getElementById("myCanvas");
         var ctx = c.getContext("2d");
 
-        var startX = 0
-        var endX = 1000
-        var startY = 0
-        var endY = 1000
+        var width = c.width
+        var height = c.height
 
-        var stepY = endY/70
-        var stepX = endX/74
+        var stepY = height/70
+        var stepX = width/74
 
         var lon0 = -15.4203
         var lon1 = -14.8937
@@ -28,14 +26,13 @@
                 this.mag = mag
                 this.lon = lon
                 this.lat = lat 
-                this.x = (1000 * Math.abs(lon0 + (-1*lon)))/lonLine
-                this.y = (1000 * Math.abs(lat1 - (lat)))/latLine
-                this.birthCounter = (Math.random() * (200 - 50) + 50)
+                this.x = (width * Math.abs(lon0 + (-1*lon)))/lonLine
+                this.y = (height * Math.abs(lat1 - (lat)))/latLine
                 if(mag != 0){
                     this.particles = []
                     this.addParticle()
-                    //this.addParticle()
-                    //this.addParticle()
+                    this.addParticle()
+
                 }else{
                     this.particles = []
                 }
@@ -55,20 +52,8 @@
 
             update() {
                 if(this.mag == 0) return 
-                // if(this.birthCounter < 0){
-                //     this.addParticle()
-                //     this.birthCounter = (Math.random() * (1500 - 100) + 100)
-                // }
-                // this.birthCounter--
                 if(this.particles.length == 0){
                     this.addParticle()
-                }
-                for(var particle of this.particles){
-                    if(particle.mother && (((this.x > particle.x)||((this.x+stepX) < particle.x)) && ((this.y > particle.y)||((this.y+stepY)<particle.y)))){
-                        particle.mother = false
-                        this.addParticle()
-                    }
-                   
                 }
             }
 
@@ -127,9 +112,10 @@
               this.instances = []
               this.sector = sector
               this.color = getActualColor(sector.mag)
-              this.deathCounter = (Math.random() * (2000 - 100) + 100)
+              this.deathCounter = (Math.random() * (1500 - 500) + 500)
               this.dead = false
               this.colorCounter = 1
+              this.colorCounter2 = 0
               this.mother = true
             }
 
@@ -139,7 +125,6 @@
             }
 
             startDeath() {
-                //this.color = defaulColorScale[0]
                 this.dirX = this.dirX/10
                 this.dirY = this.dirY/10
                 this.dead = true
@@ -150,17 +135,20 @@
                     if(this.colorCounter <= 0){
                         this.sector.removeParticle(this)
                         return
-                    }
+                    } 
+                    if(this.colorCounter < 0.6)this.color = defaulColorScale[0]
                     var split = this.color.split(',')
                     if(split.length > 3){
                         this.color = split[0]+','+split[1]+','+split[2]+','+this.colorCounter+')'
                     }else{
                         this.color = this.color.split(')')[0] + ','+this.colorCounter+')'
                     }
-                    this.colorCounter = ((this.colorCounter*10)-(0.1*10))/10
+                    this.colorCounter = ((this.colorCounter*20)-(0.1*10))/20
                 }
                 if(this.deathCounter < 0 && !this.dead){
                     this.startDeath()
+                        this.sector.addParticle()
+                    
                     return
                 }
                 this.deathCounter--
@@ -171,6 +159,16 @@
                             this.dirX = sector.u
                             this.dirY = sector.v
                             this.color = getActualColor(sector.mag)
+                            if(this.colorCounter < 1){
+                                var split = this.color.split(',')
+                                if(split.length > 3){
+                                    this.color = split[0]+','+split[1]+','+split[2]+','+this.colorCounter+')'
+                                }else{
+                                    this.color = this.color.split(')')[0] + ','+this.colorCounter+')'
+                                }
+                                this.colorCounter = ((this.colorCounter*10)+(0.1*10))/10
+                                console.log(this.colorCounter);
+                            }
                         }else{
                             this.startDeath()
                         }
@@ -185,8 +183,8 @@
             draw() {
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
-                //ctx.fillRect(this.x, this.y, 2, 2);
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2) //use rect instead of arc
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+                //ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2) //use rect instead of arc
                 ctx.fill()
 
                 if(this.instances.length != 0 && !this.dead){
@@ -195,7 +193,7 @@
                     ctx.beginPath();
                     ctx.moveTo(this.x+(this.size/2), this.y+(this.size/2));
                     ctx.lineTo(toX, toY)
-                    ctx.lineWidth = 0.5;
+                    ctx.lineWidth = 0.4;
                     ctx.strokeStyle = this.color
                     ctx.stroke()
                 }
@@ -230,10 +228,6 @@
         }
 
         var sectors = []
-        var minX = 0
-        var maxX = 0
-        var minY = 0
-        var maxY = 0
 
         async function getSectors(){
             await fetch("data.json")
@@ -242,30 +236,20 @@
                 for(var sector of json){
                     sectors.push(new Sector((sector.u != 0)?sector.u:0, (sector.v != 0)?sector.v:0, sector.mag, sector.lon, sector.lat))
                 }
-                var sectorX = []
-                var sectorY = []
-                for(var sector of sectors){
-                    sectorX.push(sector.x)
-                    sectorY.push(sector.y)
-                }   
-                minX = Math.min.apply(null,sectorX)
-                maxX = Math.max.apply(null,sectorX)
-                minY = Math.min.apply(null,sectorY)
-                maxY = Math.max.apply(null,sectorY)
             })
         }
 
         function animate() {        
-            ctx.clearRect(0, 0, 1000, 1000);
+            ctx.clearRect(0, 0, width, height);
             for(var sector of sectors){
-                sector.draw()
+                //sector.draw()
                 sector.update()
                 for(var particle of sector.particles){
-                    particle.draw()
                     particle.update()
+                    particle.draw()
                 }
             }
-            console.log(allParticles);
+            //console.log(allParticles);
             requestAnimationFrame(animate)
         }
 
