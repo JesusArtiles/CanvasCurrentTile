@@ -15,7 +15,7 @@
         var lonLine = Math.abs(lon0) - Math.abs(lon1)
         var latLine = lat1 - lat0
 
-        var trail = 25
+        var trail = 50
         var maxParticles = 5000
         var allParticles = 0
 
@@ -51,7 +51,6 @@
             }
 
             update() {
-                if(this.mag == 0) return 
                 if(this.particles.length == 0){
                     this.addParticle()
                 }
@@ -115,7 +114,6 @@
               this.deathCounter = (Math.random() * (1500 - 500) + 500)
               this.dead = false
               this.colorCounter = 1
-              this.colorCounter2 = 0
               this.mother = true
             }
 
@@ -188,13 +186,19 @@
                 ctx.fill()
 
                 if(this.instances.length != 0 && !this.dead){
-                    var toX = this.instances[0][0]
-                    var toY = this.instances[0][1]
+                    var x1 = this.instances[0][0]
+                    var y1 = this.instances[0][1]
+                    var x0 = this.x+(this.size/2)
+                    var y0 = this.y+(this.size/2)
+                    // Create gradient
+                    var grd = ctx.createLinearGradient(x0, y0, x1, y1);
+                    grd.addColorStop(0, this.color);
+                    grd.addColorStop(1, "transparent");
                     ctx.beginPath();
-                    ctx.moveTo(this.x+(this.size/2), this.y+(this.size/2));
-                    ctx.lineTo(toX, toY)
-                    ctx.lineWidth = 0.4;
-                    ctx.strokeStyle = this.color
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x1, y1)
+                    ctx.lineWidth = this.size;
+                    ctx.strokeStyle = grd
                     ctx.stroke()
                 }
             }
@@ -241,7 +245,8 @@
 
         function animate() {        
             ctx.clearRect(0, 0, width, height);
-            for(var sector of sectors){
+            var infoSectors = sectors.filter(el => el.mag != 0)
+            for(var sector of infoSectors){
                 //sector.draw()
                 sector.update()
                 for(var particle of sector.particles){
